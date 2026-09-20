@@ -148,144 +148,7 @@ interface IOptimizeSolver is IUniversalSolver {
     function getCurrentExecutorPostContext() external view returns (bytes memory);
 }
 
-abstract contract UniversalSolver is IUniversalSolver, IOptimizeSolver {
-    function getExecutionHashes() external view returns (bytes32[] memory) {
-        uint256 length = _tload(EXECUTION_HASHES_SLOT);
-        bytes32[] memory hashes = new bytes32[](length);
-        uint256 start = uint256(EXECUTION_HASHES_SLOT) + 1;
-        for (uint256 i = 0 ; i < length ; ) {
-            unchecked {
-                hashes[i] = bytes32(_tload(bytes32(start + i)));
-                ++i;
-            }
-        }
-        return hashes;
-    }
-
-    function getExecutionHash(uint256 index) external view returns (bytes32) {
-        unchecked {
-            uint256 start = uint256(EXECUTION_HASHES_SLOT) + 1;
-            return bytes32(_tload(bytes32(start + index)));
-        }
-    }
-
-    function getCurrentExecutionHash() external view returns (bytes32) {
-        unchecked {
-            uint256 start = uint256(EXECUTION_HASHES_SLOT) + 1;
-            return bytes32(_tload(bytes32(start + currentIndex)));
-        }
-    }
-
-    function getSenders() external view returns (address[] memory) {
-        uint256 length = _tload(USER_ENVELOPE_TX_SLOT);
-        address[] memory senders = new address[](length);
-        for (uint256 i = 0 ; i < length ; ) {
-            unchecked {
-                bytes32 slot = _getHashedSlot(USER_ENVELOPE_TX_SLOT, i);
-                senders[i] = address(uint160(_tload(slot)));
-                ++i;
-            }
-        }
-        return senders;
-    }
-
-    function getSender(uint256 index) external view returns (address) {
-        bytes32 slot = _getHashedSlot(USER_ENVELOPE_TX_SLOT, index);
-        return address(uint160(_tload(slot)));
-    }
-
-    function getCurrentSender() external view returns (address) {
-        bytes32 slot = _getHashedSlot(USER_ENVELOPE_TX_SLOT, currentIndex);
-        return address(uint160(_tload(slot)));
-    }
-
-    function getSliceInfos() external view returns (uint256[] memory) {
-        uint256 length = _tload(USER_ENVELOPE_TX_SLOT);
-        uint256[] memory infos = new uint256[](length);
-        for (uint256 i = 0 ; i < length ; ) {
-            unchecked {
-                bytes32 slot = _getHashedSlot(USER_ENVELOPE_TX_SLOT, i);
-                infos[i] = _tload(bytes32(uint256(slot) + 1));
-                ++i;
-            }
-        }
-        return infos;
-    }
-
-    function getSliceInfo(uint256 index) external view returns (uint256) {
-        unchecked {
-            bytes32 slot = _getHashedSlot(USER_ENVELOPE_TX_SLOT, index);
-            return _tload(bytes32(uint256(slot) + 1));
-        }
-    }
-
-    function getCurrentSliceInfo() external view returns (uint256) {
-        unchecked {
-            bytes32 slot = _getHashedSlot(USER_ENVELOPE_TX_SLOT, currentIndex);
-            return _tload(bytes32(uint256(slot) + 1));
-        }
-    }
-
-    function getEnvelopeTxs() external view returns (bytes[] memory) {
-        uint256 length = _tload(USER_ENVELOPE_TX_SLOT);
-        bytes[] memory envelopeTxs = new bytes[](length);
-        for (uint256 i = 0 ; i < length ; ) {
-            unchecked {
-                bytes32 slot = _getHashedSlot(USER_ENVELOPE_TX_SLOT, i);
-                envelopeTxs[i] = _getCacheData(bytes32(uint256(slot) + 2));
-                ++i;
-            }
-        }
-        return envelopeTxs;
-    }
-
-    function getEnvelopeTx(uint256 index) external view returns (bytes memory) {
-        unchecked {
-            bytes32 slot = _getHashedSlot(USER_ENVELOPE_TX_SLOT, index);
-            return _getCacheData(bytes32(uint256(slot) + 2));
-        }
-    }
-
-    function getCurrentEnvelopeTx() external view returns (bytes memory) {
-        unchecked {
-            bytes32 slot = _getHashedSlot(USER_ENVELOPE_TX_SLOT, currentIndex);
-            return _getCacheData(bytes32(uint256(slot) + 2));
-        }
-    }
-
-    function getUserEnvelopeTxs() external view returns (UserEnvelopeTx[] memory) {
-        uint256 length = _tload(USER_ENVELOPE_TX_SLOT);
-        UserEnvelopeTx[] memory userEnvelopeTxs = new UserEnvelopeTx[](length);
-        for (uint256 i = 0 ; i < length ; ) {
-            userEnvelopeTxs[i] = _getUserEnvelopeTx(USER_ENVELOPE_TX_SLOT, i);
-            ++i;
-        }
-        return userEnvelopeTxs;
-    }
-
-    function getUserEnvelopeTx(uint256 index) external view returns (UserEnvelopeTx memory) {
-        return _getUserEnvelopeTx(USER_ENVELOPE_TX_SLOT, index);
-    }
-
-    function getCurrentUserEnvelopeTx() external view returns (UserEnvelopeTx memory) {
-        return _getUserEnvelopeTx(USER_ENVELOPE_TX_SLOT, currentIndex);
-    }
-
-    function getExecutorPreContexts() external view returns (bytes[] memory) {
-        uint256 length = _tload(PRE_CONTEXT_SLOT);
-        bytes[] memory preContexts = new bytes[](length);
-        for (uint256 i = 0 ; i < length ; ) {
-            unchecked {
-                preContexts[i] = _getCacheData(_getHashedSlot(PRE_CONTEXT_SLOT, i));
-                ++i;
-            }
-        }
-        return preContexts;
-    }
-
-    function getExecutorPreContext(uint256 index) external view returns (bytes memory) {
-        return _getCacheData(_getHashedSlot(PRE_CONTEXT_SLOT, index));
-    }
+contract UniversalSolver is IUniversalSolver, IOptimizeSolver {
     /**
      * @dev Maximum number of bytes that a cache entry can contain.
      *
@@ -652,6 +515,168 @@ abstract contract UniversalSolver is IUniversalSolver, IOptimizeSolver {
             }
         }
         return (phase, currentIndex, initiator, executionHash, userEnvelopeTxs, executorPreContext, executorPostContext);
+    }
+
+    function getExecutionHashes() external view returns (bytes32[] memory) {
+        uint256 length = _tload(EXECUTION_HASHES_SLOT);
+        bytes32[] memory hashes = new bytes32[](length);
+        uint256 start = uint256(EXECUTION_HASHES_SLOT) + 1;
+        for (uint256 i = 0 ; i < length ; ) {
+            unchecked {
+                hashes[i] = bytes32(_tload(bytes32(start + i)));
+                ++i;
+            }
+        }
+        return hashes;
+    }
+
+    function getExecutionHash(uint256 index) external view returns (bytes32) {
+        unchecked {
+            uint256 start = uint256(EXECUTION_HASHES_SLOT) + 1;
+            return bytes32(_tload(bytes32(start + index)));
+        }
+    }
+
+    function getCurrentExecutionHash() external view returns (bytes32) {
+        unchecked {
+            uint256 start = uint256(EXECUTION_HASHES_SLOT) + 1;
+            return bytes32(_tload(bytes32(start + currentIndex)));
+        }
+    }
+
+    function getSenders() external view returns (address[] memory) {
+        uint256 length = _tload(USER_ENVELOPE_TX_SLOT);
+        address[] memory senders = new address[](length);
+        for (uint256 i = 0 ; i < length ; ) {
+            unchecked {
+                bytes32 slot = _getHashedSlot(USER_ENVELOPE_TX_SLOT, i);
+                senders[i] = address(uint160(_tload(slot)));
+                ++i;
+            }
+        }
+        return senders;
+    }
+
+    function getSender(uint256 index) external view returns (address) {
+        bytes32 slot = _getHashedSlot(USER_ENVELOPE_TX_SLOT, index);
+        return address(uint160(_tload(slot)));
+    }
+
+    function getCurrentSender() external view returns (address) {
+        bytes32 slot = _getHashedSlot(USER_ENVELOPE_TX_SLOT, currentIndex);
+        return address(uint160(_tload(slot)));
+    }
+
+    function getSliceInfos() external view returns (uint256[] memory) {
+        uint256 length = _tload(USER_ENVELOPE_TX_SLOT);
+        uint256[] memory infos = new uint256[](length);
+        for (uint256 i = 0 ; i < length ; ) {
+            unchecked {
+                bytes32 slot = _getHashedSlot(USER_ENVELOPE_TX_SLOT, i);
+                infos[i] = _tload(bytes32(uint256(slot) + 1));
+                ++i;
+            }
+        }
+        return infos;
+    }
+
+    function getSliceInfo(uint256 index) external view returns (uint256) {
+        unchecked {
+            bytes32 slot = _getHashedSlot(USER_ENVELOPE_TX_SLOT, index);
+            return _tload(bytes32(uint256(slot) + 1));
+        }
+    }
+
+    function getCurrentSliceInfo() external view returns (uint256) {
+        unchecked {
+            bytes32 slot = _getHashedSlot(USER_ENVELOPE_TX_SLOT, currentIndex);
+            return _tload(bytes32(uint256(slot) + 1));
+        }
+    }
+
+    function getEnvelopeTxs() external view returns (bytes[] memory) {
+        uint256 length = _tload(USER_ENVELOPE_TX_SLOT);
+        bytes[] memory envelopeTxs = new bytes[](length);
+        for (uint256 i = 0 ; i < length ; ) {
+            unchecked {
+                bytes32 slot = _getHashedSlot(USER_ENVELOPE_TX_SLOT, i);
+                envelopeTxs[i] = _getCacheData(bytes32(uint256(slot) + 2));
+                ++i;
+            }
+        }
+        return envelopeTxs;
+    }
+
+    function getEnvelopeTx(uint256 index) external view returns (bytes memory) {
+        unchecked {
+            bytes32 slot = _getHashedSlot(USER_ENVELOPE_TX_SLOT, index);
+            return _getCacheData(bytes32(uint256(slot) + 2));
+        }
+    }
+
+    function getCurrentEnvelopeTx() external view returns (bytes memory) {
+        unchecked {
+            bytes32 slot = _getHashedSlot(USER_ENVELOPE_TX_SLOT, currentIndex);
+            return _getCacheData(bytes32(uint256(slot) + 2));
+        }
+    }
+
+    function getUserEnvelopeTxs() external view returns (UserEnvelopeTx[] memory) {
+        uint256 length = _tload(USER_ENVELOPE_TX_SLOT);
+        UserEnvelopeTx[] memory userEnvelopeTxs = new UserEnvelopeTx[](length);
+        for (uint256 i = 0 ; i < length ; ) {
+            userEnvelopeTxs[i] = _getUserEnvelopeTx(USER_ENVELOPE_TX_SLOT, i);
+            ++i;
+        }
+        return userEnvelopeTxs;
+    }
+
+    function getUserEnvelopeTx(uint256 index) external view returns (UserEnvelopeTx memory) {
+        return _getUserEnvelopeTx(USER_ENVELOPE_TX_SLOT, index);
+    }
+
+    function getCurrentUserEnvelopeTx() external view returns (UserEnvelopeTx memory) {
+        return _getUserEnvelopeTx(USER_ENVELOPE_TX_SLOT, currentIndex);
+    }
+
+    function getExecutorPreContexts() external view returns (bytes[] memory) {
+        uint256 length = _tload(PRE_CONTEXT_SLOT);
+        bytes[] memory preContexts = new bytes[](length);
+        for (uint256 i = 0 ; i < length ; ) {
+            unchecked {
+                preContexts[i] = _getCacheData(_getHashedSlot(PRE_CONTEXT_SLOT, i));
+                ++i;
+            }
+        }
+        return preContexts;
+    }
+
+    function getExecutorPreContext(uint256 index) external view returns (bytes memory) {
+        return _getCacheData(_getHashedSlot(PRE_CONTEXT_SLOT, index));
+    }
+
+    function getCurrentExecutorPreContext() external view returns (bytes memory) {
+        return _getCacheData(_getHashedSlot(PRE_CONTEXT_SLOT, currentIndex));
+    }
+
+    function getExecutorPostContexts() external view returns (bytes[] memory) {
+        uint256 length = _tload(POST_CONTEXT_SLOT);
+        bytes[] memory postContexts = new bytes[](length);
+        for (uint256 i = 0 ; i < length ; ) {
+            unchecked {
+                postContexts[i] = _getCacheData(_getHashedSlot(POST_CONTEXT_SLOT, i));
+                ++i;
+            }
+        }
+        return postContexts;
+    }
+
+    function getExecutorPostContext(uint256 index) external view returns (bytes memory) {
+        return _getCacheData(_getHashedSlot(POST_CONTEXT_SLOT, index));
+    }
+
+    function getCurrentExecutorPostContext() external view returns (bytes memory) {
+        return _getCacheData(_getHashedSlot(POST_CONTEXT_SLOT, currentIndex));
     }
 
     /**
