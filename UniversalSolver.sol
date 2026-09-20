@@ -98,7 +98,194 @@ interface IUniversalSolver {
     );
 }
 
-contract UniversalSolver is IUniversalSolver {
+interface IOptimizeSolver is IUniversalSolver {
+    function phase() external view returns (Phase);
+
+    function currentIndex() external view returns (uint256);
+
+    function initiator() external view returns (address);
+
+    function getExecutionHashes() external view returns (bytes32[] memory);
+
+    function getExecutionHash(uint256 index) external view returns (bytes32);
+
+    function getCurrentExecutionHash() external view returns (bytes32);
+
+    function getSenders() external view returns (address[] memory);
+
+    function getSender(uint256 index) external view returns (address);
+
+    function getCurrentSender() external view returns (address);
+
+    function getSliceInfos() external view returns (uint256[] memory);
+
+    function getSliceInfo(uint256 index) external view returns (uint256);
+
+    function getCurrentSliceInfo() external view returns (uint256);
+
+    function getEnvelopeTxs() external view returns (bytes[] memory);
+
+    function getEnvelopeTx(uint256 index) external view returns (bytes memory);
+
+    function getCurrentEnvelopeTx() external view returns (bytes memory);
+
+    function getUserEnvelopeTxs() external view returns (UserEnvelopeTx[] memory);
+
+    function getUserEnvelopeTx(uint256 index) external view returns (UserEnvelopeTx memory);
+
+    function getCurrentUserEnvelopeTx() external view returns (UserEnvelopeTx memory);
+
+    function getExecutorPreContexts() external view returns (bytes[] memory);
+    
+    function getExecutorPreContext(uint256 index) external view returns (bytes memory);
+
+    function getCurrentExecutorPreContext() external view returns (bytes memory);
+
+    function getExecutorPostContexts() external view returns (bytes[] memory);
+
+    function getExecutorPostContext(uint256 index) external view returns (bytes memory);
+
+    function getCurrentExecutorPostContext() external view returns (bytes memory);
+}
+
+abstract contract UniversalSolver is IUniversalSolver, IOptimizeSolver {
+    function getExecutionHashes() external view returns (bytes32[] memory) {
+        uint256 length = _tload(EXECUTION_HASHES_SLOT);
+        bytes32[] memory hashes = new bytes32[](length);
+        uint256 start = uint256(EXECUTION_HASHES_SLOT) + 1;
+        for (uint256 i = 0 ; i < length ; ) {
+            unchecked {
+                hashes[i] = bytes32(_tload(bytes32(start + i)));
+                ++i;
+            }
+        }
+        return hashes;
+    }
+
+    function getExecutionHash(uint256 index) external view returns (bytes32) {
+        unchecked {
+            uint256 start = uint256(EXECUTION_HASHES_SLOT) + 1;
+            return bytes32(_tload(bytes32(start + index)));
+        }
+    }
+
+    function getCurrentExecutionHash() external view returns (bytes32) {
+        unchecked {
+            uint256 start = uint256(EXECUTION_HASHES_SLOT) + 1;
+            return bytes32(_tload(bytes32(start + currentIndex)));
+        }
+    }
+
+    function getSenders() external view returns (address[] memory) {
+        uint256 length = _tload(USER_ENVELOPE_TX_SLOT);
+        address[] memory senders = new address[](length);
+        for (uint256 i = 0 ; i < length ; ) {
+            unchecked {
+                bytes32 slot = _getHashedSlot(USER_ENVELOPE_TX_SLOT, i);
+                senders[i] = address(uint160(_tload(slot)));
+                ++i;
+            }
+        }
+        return senders;
+    }
+
+    function getSender(uint256 index) external view returns (address) {
+        bytes32 slot = _getHashedSlot(USER_ENVELOPE_TX_SLOT, index);
+        return address(uint160(_tload(slot)));
+    }
+
+    function getCurrentSender() external view returns (address) {
+        bytes32 slot = _getHashedSlot(USER_ENVELOPE_TX_SLOT, currentIndex);
+        return address(uint160(_tload(slot)));
+    }
+
+    function getSliceInfos() external view returns (uint256[] memory) {
+        uint256 length = _tload(USER_ENVELOPE_TX_SLOT);
+        uint256[] memory infos = new uint256[](length);
+        for (uint256 i = 0 ; i < length ; ) {
+            unchecked {
+                bytes32 slot = _getHashedSlot(USER_ENVELOPE_TX_SLOT, i);
+                infos[i] = _tload(bytes32(uint256(slot) + 1));
+                ++i;
+            }
+        }
+        return infos;
+    }
+
+    function getSliceInfo(uint256 index) external view returns (uint256) {
+        unchecked {
+            bytes32 slot = _getHashedSlot(USER_ENVELOPE_TX_SLOT, index);
+            return _tload(bytes32(uint256(slot) + 1));
+        }
+    }
+
+    function getCurrentSliceInfo() external view returns (uint256) {
+        unchecked {
+            bytes32 slot = _getHashedSlot(USER_ENVELOPE_TX_SLOT, currentIndex);
+            return _tload(bytes32(uint256(slot) + 1));
+        }
+    }
+
+    function getEnvelopeTxs() external view returns (bytes[] memory) {
+        uint256 length = _tload(USER_ENVELOPE_TX_SLOT);
+        bytes[] memory envelopeTxs = new bytes[](length);
+        for (uint256 i = 0 ; i < length ; ) {
+            unchecked {
+                bytes32 slot = _getHashedSlot(USER_ENVELOPE_TX_SLOT, i);
+                envelopeTxs[i] = _getCacheData(bytes32(uint256(slot) + 2));
+                ++i;
+            }
+        }
+        return envelopeTxs;
+    }
+
+    function getEnvelopeTx(uint256 index) external view returns (bytes memory) {
+        unchecked {
+            bytes32 slot = _getHashedSlot(USER_ENVELOPE_TX_SLOT, index);
+            return _getCacheData(bytes32(uint256(slot) + 2));
+        }
+    }
+
+    function getCurrentEnvelopeTx() external view returns (bytes memory) {
+        unchecked {
+            bytes32 slot = _getHashedSlot(USER_ENVELOPE_TX_SLOT, currentIndex);
+            return _getCacheData(bytes32(uint256(slot) + 2));
+        }
+    }
+
+    function getUserEnvelopeTxs() external view returns (UserEnvelopeTx[] memory) {
+        uint256 length = _tload(USER_ENVELOPE_TX_SLOT);
+        UserEnvelopeTx[] memory userEnvelopeTxs = new UserEnvelopeTx[](length);
+        for (uint256 i = 0 ; i < length ; ) {
+            userEnvelopeTxs[i] = _getUserEnvelopeTx(USER_ENVELOPE_TX_SLOT, i);
+            ++i;
+        }
+        return userEnvelopeTxs;
+    }
+
+    function getUserEnvelopeTx(uint256 index) external view returns (UserEnvelopeTx memory) {
+        return _getUserEnvelopeTx(USER_ENVELOPE_TX_SLOT, index);
+    }
+
+    function getCurrentUserEnvelopeTx() external view returns (UserEnvelopeTx memory) {
+        return _getUserEnvelopeTx(USER_ENVELOPE_TX_SLOT, currentIndex);
+    }
+
+    function getExecutorPreContexts() external view returns (bytes[] memory) {
+        uint256 length = _tload(PRE_CONTEXT_SLOT);
+        bytes[] memory preContexts = new bytes[](length);
+        for (uint256 i = 0 ; i < length ; ) {
+            unchecked {
+                preContexts[i] = _getCacheData(_getHashedSlot(PRE_CONTEXT_SLOT, i));
+                ++i;
+            }
+        }
+        return preContexts;
+    }
+
+    function getExecutorPreContext(uint256 index) external view returns (bytes memory) {
+        return _getCacheData(_getHashedSlot(PRE_CONTEXT_SLOT, index));
+    }
     /**
      * @dev Maximum number of bytes that a cache entry can contain.
      *
@@ -135,8 +322,8 @@ contract UniversalSolver is IUniversalSolver {
     /**
      * @dev Transient-storage namespace used for execution-envelope hashes.
      */
-    bytes32 constant INTENT_HASHES_SLOT =
-        bytes32(erc7201("intent.hashes.slot"));
+    bytes32 constant EXECUTION_HASHES_SLOT =
+        bytes32(erc7201("execution.hashes.slot"));
 
     /**
      * @notice Returns the current execution phase of the Solver.
@@ -147,17 +334,17 @@ contract UniversalSolver is IUniversalSolver {
     Phase public transient phase;
 
     /**
+     * @notice Returns the index of the UserEnvelopeTx currently being
+     *         processed.
+     */
+    uint256 public transient currentIndex;
+
+    /**
      * @notice Returns the address that initiated the current `resolve` call.
      *
      * The initiator remains unchanged throughout the execution of `resolve`.
      */
     address public transient initiator;
-
-    /**
-     * @notice Returns the index of the UserEnvelopeTx currently being
-     *         processed.
-     */
-    uint256 public transient currentIndex;
 
     /**
      * @dev Sender currently authorized to perform the Solver callback during
@@ -409,7 +596,7 @@ contract UniversalSolver is IUniversalSolver {
 
         if (callbackAccepted) revert CallbackAlreadyAccepted(executor, intent);
         unchecked {
-            bytes32 intentHash = bytes32(_tload(bytes32((uint256(INTENT_HASHES_SLOT) + 1) + currentIndex)));
+            bytes32 intentHash = bytes32(_tload(bytes32((uint256(EXECUTION_HASHES_SLOT) + 1) + currentIndex)));
             require(keccak256(intentInfo) == intentHash, InvalidIntent(executor, intent));
         }
         callbackAccepted = true;
@@ -456,7 +643,7 @@ contract UniversalSolver is IUniversalSolver {
         if (length > 0) executorPostContext = new bytes[](length - 1);
         unchecked {
             for (uint256 i = 0 ; i < length ; i++) {
-                executionHash[i] = bytes32(_tload(bytes32((uint256(INTENT_HASHES_SLOT) + 1) + i)));
+                executionHash[i] = bytes32(_tload(bytes32((uint256(EXECUTION_HASHES_SLOT) + 1) + i)));
                 userEnvelopeTxs[i] = _getUserEnvelopeTx(USER_ENVELOPE_TX_SLOT, i);
                 executorPreContext[i] = _getCacheData(_getHashedSlot(PRE_CONTEXT_SLOT, i));
                 if (i + 1 < length) {
@@ -489,7 +676,7 @@ contract UniversalSolver is IUniversalSolver {
     function _setContextPhase(UserEnvelopeTx[] calldata userEnvelopeTxs) internal {
         initiator = msg.sender;
         _tstore(USER_ENVELOPE_TX_SLOT, userEnvelopeTxs.length);
-        _tstore(INTENT_HASHES_SLOT, userEnvelopeTxs.length);
+        _tstore(EXECUTION_HASHES_SLOT, userEnvelopeTxs.length);
         _tstore(PRE_CONTEXT_SLOT, userEnvelopeTxs.length);
         for (uint256 i = 0 ; i < userEnvelopeTxs.length ; i++) {
             UserEnvelopeTx calldata userEnvelopeTx = userEnvelopeTxs[i];
@@ -499,7 +686,7 @@ contract UniversalSolver is IUniversalSolver {
             bytes calldata intentInfo = _sliceEnvelopeTx(offset, length, userEnvelopeTx.envelopeTx);
 
             _cacheUserEnvelopeTx(USER_ENVELOPE_TX_SLOT, i, userEnvelopeTx);
-            _tstore(bytes32((uint256(INTENT_HASHES_SLOT) + 1) + i), uint256(keccak256(intentInfo)));
+            _tstore(bytes32((uint256(EXECUTION_HASHES_SLOT) + 1) + i), uint256(keccak256(intentInfo)));
         }
         for (uint256 i = 0 ; i < userEnvelopeTxs.length ; ) {
             UserEnvelopeTx calldata userEnvelopeTx = userEnvelopeTxs[i];
@@ -621,12 +808,12 @@ contract UniversalSolver is IUniversalSolver {
         _tstore(USER_ENVELOPE_TX_SLOT, 0);
         _tstore(PRE_CONTEXT_SLOT, 0);
         _tstore(POST_CONTEXT_SLOT, 0);
-        _tstore(INTENT_HASHES_SLOT, 0);
+        _tstore(EXECUTION_HASHES_SLOT, 0);
         unchecked {
             for (uint256 i = 0 ; i < length ; i++) {
                 _clearUserEnvelopeTx(USER_ENVELOPE_TX_SLOT, i);
                 _setCacheData(_getHashedSlot(PRE_CONTEXT_SLOT, i), new bytes(0));
-                _tstore(bytes32(uint256(INTENT_HASHES_SLOT) + 1 + i), 0);
+                _tstore(bytes32(uint256(EXECUTION_HASHES_SLOT) + 1 + i), 0);
             }
             for (uint256 i = 0 ; i + 1 < length ; i++) {
                 _setCacheData(_getHashedSlot(POST_CONTEXT_SLOT, i), new bytes(0));
