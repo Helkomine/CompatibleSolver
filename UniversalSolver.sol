@@ -43,49 +43,58 @@ interface IUniversalSolver {
     }
 
     /**
-     * @notice Processes a batch of UserEnvelopeTx objects through the
-     *         Context, Validation, and Execution phases.
-     *
-     * The operation is atomic: any failure during any phase reverts the
-     * entire batch.
+     * @notice Processes a batch of UserEnvelopeTx objects through the Context,
+     *         Validation, and Execution phases.
+      *
+     * The operation is atomic: any failure during any phase reverts the entire
+     * batch. The initiator is recorded as the caller of this function and remains
+     * unchanged throughout the execution.
      *
      * @param userEnvelopeTxs The batch of envelope transactions to process.
      */
     function resolve(UserEnvelopeTx[] calldata userEnvelopeTxs) external;
 
     /**
-     * @notice Acknowledges the execution envelope currently being validated
-     *         by the Solver.
+     * @notice Acknowledges the execution envelope currently being validated by
+     *         the Solver.
      *
-     * The Sender calls this function during the Validation phase to confirm
-     * the exact `Executor || Intent` that the Solver expects for the current
-     * UserEnvelopeTx.
+     * The Sender calls this function during the Validation phase to confirm the
+     * exact `Executor || Intent` associated with the current UserEnvelopeTx.
      *
-     * @param intentInfo The execution envelope consisting of
-     *        `Executor || Intent`.
+     * The callback is accepted only when it is made by the Sender currently being
+     * validated and its execution envelope matches the commitment cached for the
+     * current batch item.
+     *
+     * A Sender may successfully acknowledge at most one execution envelope during
+     * its validation.
+     *
+     * @param intentInfo The execution envelope consisting of `Executor || Intent`.
      */
     function senderCallback(bytes calldata intentInfo) external;
 
     /**
      * @notice Returns the current execution context of the Solver.
      *
-     * The returned arrays represent distinct categories of execution state
-     * and are not required to have identical lengths. In particular,
-     * `executorPostContext` contains post-execution context only for
-     * executions for which a subsequent batch item exists.
+     * The returned arrays represent distinct categories of execution state and
+     * are not required to have identical lengths. In particular,
+     * `executorPostContext` contains post-execution context for each batch item
+     * that has a subsequent item.
+     *
+     * When the Solver is inactive, the returned context represents the current
+     * transient state, which is normally empty after a successful `resolve`
+     * operation.
      *
      * @return phase The current Solver execution phase.
      * @return currentIndex The index of the UserEnvelopeTx currently being
      *         processed.
-     * @return initiator The address that initiated the current `resolve`
-     *         call.
-     * @return executionHash The execution-envelope commitments for the
-     *         current batch.
+     * @return initiator The address that initiated the current `resolve` call.
+     * @return executionHash The execution-envelope commitments for the current
+     *         batch.
      * @return userEnvelopeTxs The UserEnvelopeTx objects in the current batch.
-     * @return executorPreContext The context collected from each Executor
-     *         during the Context phase.
-     * @return executorPostContext The execution results available as
-     *         post-context for preceding batch items.
+     * @return executorPreContext The pre-execution context returned by each
+     *         Executor during the Context phase.
+     * @return executorPostContext The post-execution context returned by each
+     *         Executor for preceding batch items during the Execution phase.
      */
     function context() external view returns (
         Phase phase,
@@ -98,57 +107,221 @@ interface IUniversalSolver {
     );
 }
 
-interface IOptimizeSolver is IUniversalSolver {
+/**
+ * @title IGetterSolver
+ * @notice Provides specialized getters for accessing individual pieces of
+ *         Solver execution context without retrieving and decoding the full
+ *         context returned by `IUniversalSolver.context()`.
+ *
+ * These getters are intended to reduce the amount of data that callers need
+ * to retrieve when only a subset of the Solver context is required.
+ *
+ * Indexed getters do not perform bounds checking. Callers are expected to
+ * provide an index corresponding to an existing batch item, unless otherwise
+ * specified.
+ */
+interface IGetterSolver is IUniversalSolver {
+    /**
+     * @notice Returns the current execution phase of the Solver.
+     */
     function phase() external view returns (Phase);
 
+    /**
+     * @notice Returns the index of the batch item currently being processed.
+     *
+     * During an active `resolve` call, this identifies the current
+     * `UserEnvelopeTx` being processed by the Solver.
+     */
     function currentIndex() external view returns (uint256);
 
+    /**
+     * @notice Returns the address that initiated the current `resolve` call.
+     *
+     * The initiator remains unchanged throughout the execution of `resolve`.
+     */
     function initiator() external view returns (address);
 
+    /**
+     * @notice Returns the execution hashes of all UserEnvelopeTx items in
+     *         the current batch.
+     *
+     * Each execution hash is the hash of the execution envelope
+     * `executor || intent`.
+     */
     function getExecutionHashes() external view returns (bytes32[] memory);
 
+    /**
+     * @notice Returns the execution hash of the UserEnvelopeTx at `index`.
+     *
+     * @param index The zero-based index of the batch item.
+     */
     function getExecutionHash(uint256 index) external view returns (bytes32);
 
+    /**
+     * @notice Returns the execution hash of the UserEnvelopeTx currently
+     *         being processed.
+     */
     function getCurrentExecutionHash() external view returns (bytes32);
 
+    /**
+     * @notice Returns the Sender addresses of all UserEnvelopeTx items in
+     *         the current batch.
+     */
     function getSenders() external view returns (address[] memory);
 
+    /**
+     * @notice Returns the Sender address of the UserEnvelopeTx at `index`.
+     *
+     * @param index The zero-based index of the batch item.
+     */
     function getSender(uint256 index) external view returns (address);
 
+    /**
+     * @notice Returns the Sender address of the UserEnvelopeTx currently
+     *         being processed.
+     */
     function getCurrentSender() external view returns (address);
 
+    /**
+     * @notice Returns the `sliceInfo` values of all UserEnvelopeTx items in
+     *         the current batch.
+     */
     function getSliceInfos() external view returns (uint256[] memory);
 
+    /**
+     * @notice Returns the `sliceInfo` value of the UserEnvelopeTx at `index`.
+     *
+     * @param index The zero-based index of the batch item.
+     */
     function getSliceInfo(uint256 index) external view returns (uint256);
 
+    /**
+     * @notice Returns the `sliceInfo` value of the UserEnvelopeTx currently
+     *         being processed.
+     */
     function getCurrentSliceInfo() external view returns (uint256);
 
+    /**
+     * @notice Returns the complete `envelopeTx` values of all UserEnvelopeTx
+     *         items in the current batch.
+     */
     function getEnvelopeTxs() external view returns (bytes[] memory);
 
+    /**
+     * @notice Returns the complete `envelopeTx` of the UserEnvelopeTx at
+     *         `index`.
+     *
+     * @param index The zero-based index of the batch item.
+     */
     function getEnvelopeTx(uint256 index) external view returns (bytes memory);
 
+    /**
+     * @notice Returns the complete `envelopeTx` of the UserEnvelopeTx
+     *         currently being processed.
+     */
     function getCurrentEnvelopeTx() external view returns (bytes memory);
 
-    function getUserEnvelopeTxs() external view returns (UserEnvelopeTx[] memory);
+    /**
+     * @notice Returns all UserEnvelopeTx items in the current batch.
+     *
+     * This is equivalent to retrieving the corresponding Sender,
+     * `sliceInfo`, and `envelopeTx` values together.
+     */
+    function getUserEnvelopeTxs()
+        external
+        view
+        returns (UserEnvelopeTx[] memory);
 
-    function getUserEnvelopeTx(uint256 index) external view returns (UserEnvelopeTx memory);
+    /**
+     * @notice Returns the UserEnvelopeTx at `index`.
+     *
+     * @param index The zero-based index of the batch item.
+     */
+    function getUserEnvelopeTx(uint256 index)
+        external
+        view
+        returns (UserEnvelopeTx memory);
 
-    function getCurrentUserEnvelopeTx() external view returns (UserEnvelopeTx memory);
+    /**
+     * @notice Returns the UserEnvelopeTx currently being processed.
+     */
+    function getCurrentUserEnvelopeTx()
+        external
+        view
+        returns (UserEnvelopeTx memory);
 
-    function getExecutorPreContexts() external view returns (bytes[] memory);
-    
-    function getExecutorPreContext(uint256 index) external view returns (bytes memory);
+    /**
+     * @notice Returns the pre-execution contexts produced by all Executors
+     *         in the current batch.
+     *
+     * Each entry corresponds to the Executor at the same batch index.
+     */
+    function getExecutorPreContexts()
+        external
+        view
+        returns (bytes[] memory);
 
-    function getCurrentExecutorPreContext() external view returns (bytes memory);
+    /**
+     * @notice Returns the pre-execution context produced by the Executor at
+     *         `index`.
+     *
+     * @param index The zero-based index of the batch item.
+     */
+    function getExecutorPreContext(uint256 index)
+        external
+        view
+        returns (bytes memory);
 
-    function getExecutorPostContexts() external view returns (bytes[] memory);
+    /**
+     * @notice Returns the pre-execution context produced by the Executor
+     *         currently being processed.
+     */
+    function getCurrentExecutorPreContext()
+        external
+        view
+        returns (bytes memory);
 
-    function getExecutorPostContext(uint256 index) external view returns (bytes memory);
+    /**
+     * @notice Returns the post-execution contexts produced for the batch.
+     *
+     * The returned array contains the post-context produced after execution
+     * of each completed batch item for which a subsequent item exists.
+     * Therefore, for a batch of `n` items, the array contains `n - 1`
+     * entries when `n > 0`, and zero entries when `n == 0`.
+     */
+    function getExecutorPostContexts()
+        external
+        view
+        returns (bytes[] memory);
 
-    function getCurrentExecutorPostContext() external view returns (bytes memory);
+    /**
+     * @notice Returns the post-execution context associated with the batch
+     *         item at `index`.
+     *
+     * @param index The zero-based index of the post-context.
+     */
+    function getExecutorPostContext(uint256 index)
+        external
+        view
+        returns (bytes memory);
+
+    /**
+     * @notice Returns the most recently produced post-execution context
+     *         preceding the current batch item.
+     *
+     * When `currentIndex == k` and `k > 0`, this returns the post-context
+     * produced for batch item `k - 1`.
+     *
+     * When `currentIndex == 0`, no preceding item has been executed and
+     * the function returns an empty byte string.
+     */
+    function getCurrentExecutorPostContext()
+        external
+        view
+        returns (bytes memory);
 }
 
-contract UniversalSolver is IUniversalSolver, IOptimizeSolver {
+contract UniversalSolver is IUniversalSolver, IGetterSolver {
     /**
      * @dev Maximum number of bytes that a cache entry can contain.
      *
@@ -188,25 +361,13 @@ contract UniversalSolver is IUniversalSolver, IOptimizeSolver {
     bytes32 constant EXECUTION_HASHES_SLOT =
         bytes32(erc7201("execution.hashes.slot"));
 
-    /**
-     * @notice Returns the current execution phase of the Solver.
-     *
-     * This value is transaction-scoped and is reset to `INACTIVE` after
-     * `resolve` completes successfully.
-     */
+    /// @inheritdoc IGetterSolver
     Phase public transient phase;
 
-    /**
-     * @notice Returns the index of the UserEnvelopeTx currently being
-     *         processed.
-     */
+    /// @inheritdoc IGetterSolver
     uint256 public transient currentIndex;
 
-    /**
-     * @notice Returns the address that initiated the current `resolve` call.
-     *
-     * The initiator remains unchanged throughout the execution of `resolve`.
-     */
+    /// @inheritdoc IGetterSolver
     address public transient initiator;
 
     /**
@@ -419,16 +580,7 @@ contract UniversalSolver is IUniversalSolver, IOptimizeSolver {
      */
     fallback() external {}
 
-    /**
-     * @notice Processes a batch of UserEnvelopeTx objects through the Context,
-     *         Validation, and Execution phases.
-      *
-     * The operation is atomic: any failure during any phase reverts the entire
-     * batch. The initiator is recorded as the caller of this function and remains
-     * unchanged throughout the execution.
-     *
-     * @param userEnvelopeTxs The batch of envelope transactions to process.
-     */
+    /// @inheritdoc IUniversalSolver
     function resolve(UserEnvelopeTx[] calldata userEnvelopeTxs) external nonReentrant {
         _setContextPhase(userEnvelopeTxs);
         _validateSenderPhase(userEnvelopeTxs);
@@ -436,22 +588,7 @@ contract UniversalSolver is IUniversalSolver, IOptimizeSolver {
         _clearContext();
     }
 
-    /**
-     * @notice Acknowledges the execution envelope currently being validated by
-     *         the Solver.
-     *
-     * The Sender calls this function during the Validation phase to confirm the
-     * exact `Executor || Intent` associated with the current UserEnvelopeTx.
-     *
-     * The callback is accepted only when it is made by the Sender currently being
-     * validated and its execution envelope matches the commitment cached for the
-     * current batch item.
-     *
-     * A Sender may successfully acknowledge at most one execution envelope during
-     * its validation.
-     *
-     * @param intentInfo The execution envelope consisting of `Executor || Intent`.
-     */
+    /// @inheritdoc IUniversalSolver
     function senderCallback(bytes calldata intentInfo) external onlySolverActive {
         require(msg.sender == validSenderCallback, InvalidSender(msg.sender));
         
@@ -466,30 +603,7 @@ contract UniversalSolver is IUniversalSolver, IOptimizeSolver {
         emit SenderCallbackSuccess(msg.sender, intent);
     }
 
-    /**
-     * @notice Returns the current execution context of the Solver.
-     *
-     * The returned arrays represent distinct categories of execution state and
-     * are not required to have identical lengths. In particular,
-     * `executorPostContext` contains post-execution context for each batch item
-     * that has a subsequent item.
-     *
-     * When the Solver is inactive, the returned context represents the current
-     * transient state, which is normally empty after a successful `resolve`
-     * operation.
-     *
-     * @return _phase The current Solver execution phase.
-     * @return _currentIndex The index of the UserEnvelopeTx currently being
-     *         processed.
-     * @return _initiator The address that initiated the current `resolve` call.
-     * @return executionHash The execution-envelope commitments for the current
-     *         batch.
-     * @return userEnvelopeTxs The UserEnvelopeTx objects in the current batch.
-     * @return executorPreContext The pre-execution context returned by each
-     *         Executor during the Context phase.
-     * @return executorPostContext The post-execution context returned by each
-     *         Executor for preceding batch items during the Execution phase.
-     */
+    /// @inheritdoc IUniversalSolver
     function context() external view returns (
         Phase _phase,
         uint256 _currentIndex,
@@ -517,6 +631,7 @@ contract UniversalSolver is IUniversalSolver, IOptimizeSolver {
         return (phase, currentIndex, initiator, executionHash, userEnvelopeTxs, executorPreContext, executorPostContext);
     }
 
+    /// @inheritdoc IGetterSolver
     function getExecutionHashes() external view returns (bytes32[] memory) {
         uint256 length = _tload(EXECUTION_HASHES_SLOT);
         bytes32[] memory hashes = new bytes32[](length);
@@ -530,6 +645,7 @@ contract UniversalSolver is IUniversalSolver, IOptimizeSolver {
         return hashes;
     }
 
+    /// @inheritdoc IGetterSolver
     function getExecutionHash(uint256 index) external view returns (bytes32) {
         unchecked {
             uint256 start = uint256(EXECUTION_HASHES_SLOT) + 1;
@@ -537,6 +653,7 @@ contract UniversalSolver is IUniversalSolver, IOptimizeSolver {
         }
     }
 
+    /// @inheritdoc IGetterSolver
     function getCurrentExecutionHash() external view returns (bytes32) {
         unchecked {
             uint256 start = uint256(EXECUTION_HASHES_SLOT) + 1;
@@ -544,6 +661,7 @@ contract UniversalSolver is IUniversalSolver, IOptimizeSolver {
         }
     }
 
+    /// @inheritdoc IGetterSolver
     function getSenders() external view returns (address[] memory) {
         uint256 length = _tload(USER_ENVELOPE_TX_SLOT);
         address[] memory senders = new address[](length);
@@ -557,16 +675,19 @@ contract UniversalSolver is IUniversalSolver, IOptimizeSolver {
         return senders;
     }
 
+    /// @inheritdoc IGetterSolver
     function getSender(uint256 index) external view returns (address) {
         bytes32 slot = _getHashedSlot(USER_ENVELOPE_TX_SLOT, index);
         return address(uint160(_tload(slot)));
     }
 
+    /// @inheritdoc IGetterSolver
     function getCurrentSender() external view returns (address) {
         bytes32 slot = _getHashedSlot(USER_ENVELOPE_TX_SLOT, currentIndex);
         return address(uint160(_tload(slot)));
     }
 
+    /// @inheritdoc IGetterSolver
     function getSliceInfos() external view returns (uint256[] memory) {
         uint256 length = _tload(USER_ENVELOPE_TX_SLOT);
         uint256[] memory infos = new uint256[](length);
@@ -580,6 +701,7 @@ contract UniversalSolver is IUniversalSolver, IOptimizeSolver {
         return infos;
     }
 
+    /// @inheritdoc IGetterSolver
     function getSliceInfo(uint256 index) external view returns (uint256) {
         unchecked {
             bytes32 slot = _getHashedSlot(USER_ENVELOPE_TX_SLOT, index);
@@ -587,6 +709,7 @@ contract UniversalSolver is IUniversalSolver, IOptimizeSolver {
         }
     }
 
+    /// @inheritdoc IGetterSolver
     function getCurrentSliceInfo() external view returns (uint256) {
         unchecked {
             bytes32 slot = _getHashedSlot(USER_ENVELOPE_TX_SLOT, currentIndex);
@@ -594,6 +717,7 @@ contract UniversalSolver is IUniversalSolver, IOptimizeSolver {
         }
     }
 
+    /// @inheritdoc IGetterSolver
     function getEnvelopeTxs() external view returns (bytes[] memory) {
         uint256 length = _tload(USER_ENVELOPE_TX_SLOT);
         bytes[] memory envelopeTxs = new bytes[](length);
@@ -607,6 +731,7 @@ contract UniversalSolver is IUniversalSolver, IOptimizeSolver {
         return envelopeTxs;
     }
 
+    /// @inheritdoc IGetterSolver
     function getEnvelopeTx(uint256 index) external view returns (bytes memory) {
         unchecked {
             bytes32 slot = _getHashedSlot(USER_ENVELOPE_TX_SLOT, index);
@@ -614,6 +739,7 @@ contract UniversalSolver is IUniversalSolver, IOptimizeSolver {
         }
     }
 
+    /// @inheritdoc IGetterSolver
     function getCurrentEnvelopeTx() external view returns (bytes memory) {
         unchecked {
             bytes32 slot = _getHashedSlot(USER_ENVELOPE_TX_SLOT, currentIndex);
@@ -621,6 +747,7 @@ contract UniversalSolver is IUniversalSolver, IOptimizeSolver {
         }
     }
 
+    /// @inheritdoc IGetterSolver
     function getUserEnvelopeTxs() external view returns (UserEnvelopeTx[] memory) {
         uint256 length = _tload(USER_ENVELOPE_TX_SLOT);
         UserEnvelopeTx[] memory userEnvelopeTxs = new UserEnvelopeTx[](length);
@@ -631,14 +758,17 @@ contract UniversalSolver is IUniversalSolver, IOptimizeSolver {
         return userEnvelopeTxs;
     }
 
+    /// @inheritdoc IGetterSolver
     function getUserEnvelopeTx(uint256 index) external view returns (UserEnvelopeTx memory) {
         return _getUserEnvelopeTx(USER_ENVELOPE_TX_SLOT, index);
     }
 
+    /// @inheritdoc IGetterSolver
     function getCurrentUserEnvelopeTx() external view returns (UserEnvelopeTx memory) {
         return _getUserEnvelopeTx(USER_ENVELOPE_TX_SLOT, currentIndex);
     }
 
+    /// @inheritdoc IGetterSolver
     function getExecutorPreContexts() external view returns (bytes[] memory) {
         uint256 length = _tload(PRE_CONTEXT_SLOT);
         bytes[] memory preContexts = new bytes[](length);
@@ -651,14 +781,17 @@ contract UniversalSolver is IUniversalSolver, IOptimizeSolver {
         return preContexts;
     }
 
+    /// @inheritdoc IGetterSolver
     function getExecutorPreContext(uint256 index) external view returns (bytes memory) {
         return _getCacheData(_getHashedSlot(PRE_CONTEXT_SLOT, index));
     }
 
+    /// @inheritdoc IGetterSolver
     function getCurrentExecutorPreContext() external view returns (bytes memory) {
         return _getCacheData(_getHashedSlot(PRE_CONTEXT_SLOT, currentIndex));
     }
 
+    /// @inheritdoc IGetterSolver
     function getExecutorPostContexts() external view returns (bytes[] memory) {
         uint256 length = _tload(POST_CONTEXT_SLOT);
         bytes[] memory postContexts = new bytes[](length);
@@ -671,12 +804,21 @@ contract UniversalSolver is IUniversalSolver, IOptimizeSolver {
         return postContexts;
     }
 
+    /// @inheritdoc IGetterSolver
     function getExecutorPostContext(uint256 index) external view returns (bytes memory) {
         return _getCacheData(_getHashedSlot(POST_CONTEXT_SLOT, index));
     }
 
+    /// @inheritdoc IGetterSolver
     function getCurrentExecutorPostContext() external view returns (bytes memory) {
-        return _getCacheData(_getHashedSlot(POST_CONTEXT_SLOT, currentIndex));
+        unchecked {
+            uint256 index = currentIndex;
+            bytes memory postContext;
+            if (index > 0) {
+                postContext = _getCacheData(_getHashedSlot(POST_CONTEXT_SLOT, index - 1));
+            }
+            return postContext;
+        }
     }
 
     /**
