@@ -3,11 +3,11 @@ pragma solidity ^0.8.35;
 /// @author Helkomine (@Helkomine)
 
 /**
- * @title Universal Solver Interface
+ * @title Compatible Solver Interface
  * @notice Standard interface for coordinating Context, Validation, and
  *         Execution phases of Solver-compatible intent execution.
  */
-interface IUniversalSolver {
+interface ICompatibleSolver {
     /**
      * @notice Represents the current execution phase of the Solver.
      *
@@ -111,7 +111,7 @@ interface IUniversalSolver {
  * @title IGetterSolver
  * @notice Provides specialized getters for accessing individual pieces of
  *         Solver execution context without retrieving and decoding the full
- *         context returned by `IUniversalSolver.context()`.
+ *         context returned by `ICompatibleSolver.context()`.
  *
  * These getters are intended to reduce the amount of data that callers need
  * to retrieve when only a subset of the Solver context is required.
@@ -120,7 +120,7 @@ interface IUniversalSolver {
  * provide an index corresponding to an existing batch item, unless otherwise
  * specified.
  */
-interface IGetterSolver is IUniversalSolver {
+interface IGetterSolver is ICompatibleSolver {
     /**
      * @notice Returns the current execution phase of the Solver.
      */
@@ -321,7 +321,7 @@ interface IGetterSolver is IUniversalSolver {
         returns (bytes memory);
 }
 
-contract UniversalSolver is IUniversalSolver, IGetterSolver {
+contract CompatibleSolver is ICompatibleSolver, IGetterSolver {
     /**
      * @dev Maximum number of bytes that a cache entry can contain.
      *
@@ -580,7 +580,7 @@ contract UniversalSolver is IUniversalSolver, IGetterSolver {
      */
     fallback() external {}
 
-    /// @inheritdoc IUniversalSolver
+    /// @inheritdoc ICompatibleSolver
     function resolve(UserEnvelopeTx[] calldata userEnvelopeTxs) external nonReentrant {
         _setContextPhase(userEnvelopeTxs);
         _validateSenderPhase(userEnvelopeTxs);
@@ -588,7 +588,7 @@ contract UniversalSolver is IUniversalSolver, IGetterSolver {
         _clearContext();
     }
 
-    /// @inheritdoc IUniversalSolver
+    /// @inheritdoc ICompatibleSolver
     function senderCallback(bytes calldata intentInfo) external onlySolverActive {
         require(msg.sender == validSenderCallback, InvalidSender(msg.sender));
         
@@ -603,7 +603,7 @@ contract UniversalSolver is IUniversalSolver, IGetterSolver {
         emit SenderCallbackSuccess(msg.sender, intent);
     }
 
-    /// @inheritdoc IUniversalSolver
+    /// @inheritdoc ICompatibleSolver
     function context() external view returns (
         Phase _phase,
         uint256 _currentIndex,
