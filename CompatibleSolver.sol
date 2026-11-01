@@ -868,7 +868,7 @@ contract CompatibleSolver is ICompatibleSolver, IGetterSolver {
             _cachePreContext(PRE_CONTEXT_SLOT, i, userEnvelopeTx.sender, executor, intent);
             unchecked { ++i; }
         }
-        _markPhase1Pass();
+        _markContextPhasePass();
     }
 
     /**
@@ -908,7 +908,7 @@ contract CompatibleSolver is ICompatibleSolver, IGetterSolver {
             unchecked { ++i; }
         }
         validSenderCallback = address(0);
-        _markPhase2Pass();
+        _markValidationPhasePass();
     }
 
     /**
@@ -1069,7 +1069,14 @@ contract CompatibleSolver is ICompatibleSolver, IGetterSolver {
         _restoreFreePtr(ptr);
     }
 
-    // Hàm trả về đối tượng có kiểu UserEnvelopeTx
+    /** 
+     * @notice Retrieves a `UserEnvelopeTx` from the transient storage cache.
+     * @dev Reconstructs the struct using the cached sender, slice information,
+     *      and envelope transaction data.
+     * @param namespace The storage namespace identifying the cached data.
+     * @param index The index of the `UserEnvelopeTx` within the cached batch.
+     * @return The reconstructed `UserEnvelopeTx` struct.
+     */
     function _getUserEnvelopeTx(
         bytes32 namespace,
         uint256 index
@@ -1125,13 +1132,10 @@ contract CompatibleSolver is ICompatibleSolver, IGetterSolver {
                 totalCacheSlot := shr(5, _cacheLength)
             }
             tstore(namespace, length)
-            {
-                let _namespace := add(namespace, 1)
-                if gt(namespace, _namespace) {
-                    mstore(0, overflowSelector)
-                    revert(0, 4)
-                }
-                namespace := _namespace
+            namespace := add(namespace, 1)
+            if gt(1, namespace) {
+                mstore(0, overflowSelector)
+                revert(0, 4)
             }
             if length {
                 let floorTotalSlot := shr(5, length)
@@ -1206,13 +1210,10 @@ contract CompatibleSolver is ICompatibleSolver, IGetterSolver {
             let cacheLength := tload(namespace)
             let totalCacheSlot := shr(5, add(cacheLength, 31))
             tstore(namespace, length)
-            {
-                let _namespace := add(namespace, 1)
-                if gt(namespace, _namespace) {
-                    mstore(0, overflowSelector)
-                    revert(0, 4)
-                }
-                namespace := _namespace
+            namespace := add(namespace, 1)
+            if gt(1, namespace) {
+                mstore(0, overflowSelector)
+                revert(0, 4)
             }
             if length {
                 let floorTotalSlot := shr(5, length)
@@ -1291,17 +1292,14 @@ contract CompatibleSolver is ICompatibleSolver, IGetterSolver {
                 let floorTotalSlot := shr(5, length)
                 let totalSlot := shr(5, add(length, 31))
                 let lastSlot := add(namespace, floorTotalSlot)
-                {
-                    let _namespace := add(namespace, 1)
-                    if gt(namespace, _namespace) {
-                        mstore(0, overflowSelector)
-                        revert(0, 4)
-                    }
-                    namespace := _namespace
-                    if gt(namespace, lastSlot) {
-                        mstore(0, overflowSelector)
-                        revert(0, 4)
-                    }
+                if gt(namespace, lastSlot) {
+                    mstore(0, overflowSelector)
+                    revert(0, 4)
+                }
+                namespace := add(namespace, 1)
+                if gt(1, namespace) {
+                    mstore(0, overflowSelector)
+                    revert(0, 4)
                 }
                 for { let i } lt(i, floorTotalSlot) { i := add(i, 1) } {
                     mstore(add(offset, shl(5, i)), tload(add(namespace, i)))
@@ -1321,12 +1319,21 @@ contract CompatibleSolver is ICompatibleSolver, IGetterSolver {
         }
     }
 
-    function _markPhase1Pass() internal {
+    /*
+     * @notice Marks the Context phase as successfully completed.
+     * @dev Emits `ContextPhaseSuccess` and advances the Solver to the
+     *      Validation phase.
+     */
+    function _markContextPhasePass() internal {
         emit ContextPhaseSuccess();
         phase = Phase.VALIDATION;
     }
 
-    function _markPhase2Pass() internal {
+    /* @notice Marks the Validation phase as successfully completed.
+     * @dev Emits `ValidateSenderPhaseSuccess` and advances the Solver to the
+     *      Execution phase.
+     */
+    function _markValidationPhasePass() internal {
         emit ValidateSenderPhaseSuccess();
         phase = Phase.EXECUTION;
     }
