@@ -1122,6 +1122,11 @@ contract CompatibleSolver is ICompatibleSolver, IGetterSolver {
             }
             let totalSlot := shr(5, add(length, 31))
             let cacheLength := tload(namespace)
+            if gt(cacheLength, maxTotalLength) {
+                mstore(0, lengthTooLargeSelector)
+                mstore(4, cacheLength)
+                revert(0, 36)
+            }
             let totalCacheSlot := add(cacheLength, 31)
             if gt(cacheLength, totalCacheSlot) {
                 mstore(0, overflowSelector)
@@ -1156,11 +1161,6 @@ contract CompatibleSolver is ICompatibleSolver, IGetterSolver {
                 }
             }
             if gt(totalCacheSlot, totalSlot) {
-                if gt(cacheLength, maxTotalLength) {
-                    mstore(0, lengthTooLargeSelector)
-                    mstore(4, cacheLength)
-                    revert(0, 36)
-                }
                 if gt(namespace, add(namespace, totalCacheSlot)) {
                     mstore(0, overflowSelector)
                     revert(0, 4)
@@ -1205,6 +1205,11 @@ contract CompatibleSolver is ICompatibleSolver, IGetterSolver {
             }
             let totalSlot := shr(5, add(length, 31))
             let cacheLength := tload(namespace)
+            if gt(cacheLength, maxTotalLength) {
+                mstore(0, lengthTooLargeSelector)
+                mstore(4, cacheLength)
+                revert(0, 36)
+            }
             let totalCacheSlot := add(cacheLength, 31)
             if gt(cacheLength, totalCacheSlot) {
                 mstore(0, overflowSelector)
@@ -1238,12 +1243,7 @@ contract CompatibleSolver is ICompatibleSolver, IGetterSolver {
                     tstore(lastSlot, mask)
                 }
             }
-            if gt(totalCacheSlot, totalSlot)  {
-                if gt(cacheLength, maxTotalLength) {
-                    mstore(0, lengthTooLargeSelector)
-                    mstore(4, maxTotalLength)
-                    revert(0, 36)
-                }
+            if gt(totalCacheSlot, totalSlot) {
                 if gt(namespace, add(namespace, totalCacheSlot)) {
                     mstore(0, overflowSelector)
                     revert(0, 4)
