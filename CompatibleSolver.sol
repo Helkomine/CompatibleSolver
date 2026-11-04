@@ -1122,15 +1122,12 @@ contract CompatibleSolver is ICompatibleSolver, IGetterSolver {
             }
             let totalSlot := shr(5, add(length, 31))
             let cacheLength := tload(namespace)
-            let totalCacheSlot
-            {
-                let _cacheLength := add(cacheLength, 31)
-                if gt(cacheLength, _cacheLength) {
-                    mstore(0, overflowSelector)
-                    revert(0, 4)
-                }
-                totalCacheSlot := shr(5, _cacheLength)
+            let totalCacheSlot := add(cacheLength, 31)
+            if gt(cacheLength, totalCacheSlot) {
+                mstore(0, overflowSelector)
+                revert(0, 4)
             }
+            totalCacheSlot := shr(5, totalCacheSlot)
             tstore(namespace, length)
             namespace := add(namespace, 1)
             if gt(1, namespace) {
@@ -1208,7 +1205,12 @@ contract CompatibleSolver is ICompatibleSolver, IGetterSolver {
             }
             let totalSlot := shr(5, add(length, 31))
             let cacheLength := tload(namespace)
-            let totalCacheSlot := shr(5, add(cacheLength, 31))
+            let totalCacheSlot := add(cacheLength, 31)
+            if gt(cacheLength, totalCacheSlot) {
+                mstore(0, overflowSelector)
+                revert(0, 4)
+            }
+            totalCacheSlot := shr(5, totalCacheSlot)
             tstore(namespace, length)
             namespace := add(namespace, 1)
             if gt(1, namespace) {
