@@ -1293,12 +1293,12 @@ contract CompatibleSolver is ICompatibleSolver, IGetterSolver {
             if length {
                 let floorTotalSlot := shr(5, length)
                 let totalSlot := shr(5, add(length, 31))
-                let lastSlot := add(namespace, floorTotalSlot)
                 namespace := add(namespace, 1)
                 if gt(1, namespace) {
                     mstore(0, overflowSelector)
                     revert(0, 4)
                 }
+                let lastSlot := add(namespace, floorTotalSlot)
                 if gt(namespace, lastSlot) {
                     mstore(0, overflowSelector)
                     revert(0, 4)
